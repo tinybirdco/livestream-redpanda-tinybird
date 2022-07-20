@@ -1,0 +1,26 @@
+
+SCHEMA >
+    `value` String,
+    `topic` LowCardinality(String),
+    `partition` Int16,
+    `offset` Int64,
+    `timestamp` DateTime,
+    `key` String,
+    `Athlete` String `json:$.Athlete`,
+    `Elevation` String `json:$.Elevation`,
+    `Latitude` String `json:$.Latitude`,
+    `Longitude` String `json:$.Longitude`,
+    `Name` String `json:$.Name`,
+    `Team` String `json:$.Team`,
+    `Time` Int32 `json:$.Time`
+
+ENGINE "MergeTree"
+ENGINE_PARTITION_KEY "toYYYYMM(timestamp)"
+ENGINE_SORTING_KEY "timestamp"
+
+KAFKA_CONNECTION_NAME 'tb'
+KAFKA_TOPIC 'telemetry'
+KAFKA_GROUP_ID 'tb-demo-telemetry'
+KAFKA_AUTO_OFFSET_RESET 'latest'
+KAFKA_STORE_RAW_VALUE 'False'
+KAFKA_TARGET_PARTITIONS 'auto'

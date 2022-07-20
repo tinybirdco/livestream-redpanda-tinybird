@@ -1,0 +1,108 @@
+NODE latest_positions
+SQL >
+
+    SELECT Name, Athlete, timestamp, 
+    Latitude::float, 
+      toFloat32(Latitude) Latitude,
+      toFloat32(Longitude) Longitude,  toFloat32(Elevation) Elevation, Time FROM positions
+    where timestamp > '2022-07-20 08:30:00'
+    and timestamp < '2022-07-20 08:56:00'
+    order by timestamp desc
+    limit 1 by Athlete
+
+
+
+NODE positions_with_prev_pos
+SQL >
+
+    SELECT  
+        * , lagInFrame ((Longitude, Latitude)) over (PARTITION BY Athlete,Name order by timestamp, Time 
+          rows between unbounded preceding and unbounded following)
+          as prev_pos 
+    FROM positions
+    where timestamp > '2022-07-20 08:30:00'
+    and timestamp < '2022-07-20 08:56:00'
+
+
+
+NODE positions_with_distance
+SQL >
+
+    SELECT *, geoDistance( toFloat32(Longitude), toFloat32(Latitude), toFloat32(prev_pos.1), toFloat32(prev_pos.2)) dist
+    FROM positions_with_prev_pos
+    where prev_pos.1 != ''
+
+
+
+NODE positions_with_avg_speed
+SQL >
+
+    SELECT  Name, Athlete,
+        sumIf(dist, dist < 90/3.6) total_distance,
+        avg(dist) speed_ms,
+        max (total_distance) over (PARTITION BY Name) as top_distance 
+    FROM positions_with_distance
+        group by Name, Athlete
+        order by Name, Athlete 
+
+
+
+NODE position_with_dist_in_seconds
+SQL >
+
+    SELECT *, (top_distance - total_distance)/speed_ms distance_seconds
+    from positions_with_avg_speed
+
+
+
+NODE endpoint
+SQL >
+
+    SELECT 
+       p.*, 
+       distance_seconds from latest_positions as p
+    any left join position_with_dist_in_seconds
+    using Athlete
+
+
+
+NODE real_time_position_6
+SQL >
+
+    select * from real_time_position_2
+    where Athlete = 'THOMAS PIDCOCK'
+
+
+
+NODE real_time_position_7
+SQL >
+
+    SELECT any(dist) d, any(timestamp) t FROM real_time_position_6 
+    group by offset
+
+
+
+NODE real_time_position_8
+SQL >
+
+    SELECT * FROM real_time_position_7 where d > 100 order by t desc
+
+
+
+NODE real_time_position_9
+SQL >
+
+     select Name, Athlete, timestamp, toFloat32(Latitude) Latitude,  toFloat32(Longitude) Longitude, 
+     toFloat32(Elevation) Elevation, Time
+     from real_time_position_6
+
+
+
+NODE real_time_position_10
+SQL >
+
+    SELECT dist, * FROM real_time_position_6 
+    where timestamp between '2022-07-19 14:27:12' and '2022-07-19 14:27:13'
+    order by timestamp 
+
+
